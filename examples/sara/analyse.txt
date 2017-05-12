@@ -1,0 +1,9 @@
+Iteration 1   Logistic Regression   0.8598 lokal    ca 0.77 online
+Iteration 2   SVM                   0.8824 lokal    ca. 0.78 online
+Iteration 3   KNN                   0.8536 lokal    ca. 0.77 online
+Iteration 4   Decision Tree         0.80039 lokal   0.76077
+Iteration 5   Random Forest         0.8706 lokal    0.7799
+Iteration 6   Bagging Rand Forest   0.9029          0.79426
+Iteration 7   Bagging SVM           0.878
+
+
