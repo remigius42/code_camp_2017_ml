@@ -56,28 +56,22 @@ def build_lexicon_for_column(column_name):
         lexicon += list(word_tokens)
 
     print('number of words in column ', column_name, ': ', len(lexicon))
-#    print(lexicon[:100])
 
     lexicon = [stemmer.stem(str(w)) for w in lexicon]
     w_counts = Counter(lexicon)
     print('number of distinct words: ', len(w_counts))
- #   print(list(w_counts)[:100])
 
 
     filtered_w_counts = [w for w in w_counts if not w in stop_words_de]
     print('number of filtered distinct words: ', len(filtered_w_counts))
-#    print(filtered_w_counts[:100])
 
     lexicon_with_relevant_words = []
 
     for word in filtered_w_counts:
-#        print(word, "': ", w_counts[word])
         if upper_bound_w_count > w_counts[word] > lower_bound_w_count:
             if len(word) >= min_word_len:
                 lexicon_with_relevant_words.append(word)
 
-#    print('number of relevant words in lexicon: ', len(lexicon_with_relevant_words))
-#    print(lexicon_with_relevant_words[:100])
     return lexicon_with_relevant_words
 
 
@@ -93,10 +87,10 @@ if os.path.exists(preprocessed_file):
     f = open(preprocessed_file, 'rb')
     alm_data = pickle.load(f)
     f.close()
-    print('alm_data loaded from pickle', preprocessed_file)
+    print('Alm_data loaded from pickle', preprocessed_file)
 else:
 
-    print('pickle for alm_data ', preprocessed_file, 'does not exist yet')
+    print('Pickle for alm_data ', preprocessed_file, 'does not exist yet')
 
     raw_data = pd.read_excel('/vagrant/examples/data/ALMsINCs.xlsx')
     #alm_data[feature_columns].to_csv('/vagrant/examples/data/ALMforWeka.csv',index=False)
@@ -104,14 +98,14 @@ else:
 
 
     stop_words_de = set(stopwords.words('german'))
-    #stemmer = SnowballStemmer("german")
-    stemmer = PorterStemmer()
+    stemmer = SnowballStemmer("german")
+    # stemmer = PorterStemmer()
 
-    print(alm_data.shape)
+    print('Initial shape after loading: ', alm_data.shape)
     alm_data = alm_data[((alm_data['Resolution'] == 'Fixed') | (alm_data['Resolution'] == 'Won\'t Fix'))]
-    print(alm_data.shape)
+    print('Shape after filtering for Fixed/WontFix: ', alm_data.shape)
     alm_data = alm_data[feature_columns]
-    print(alm_data.shape)
+    print('Shape after reducing to columns known at submit time: ', alm_data.shape)
 
     alm_data.loc[alm_data["Issue Type"] == "ALM", "Issue Type"] = 0
     alm_data.loc[alm_data["Issue Type"] == "INC", "Issue Type"] = 1
@@ -137,7 +131,7 @@ else:
         f = open(summary_lex_file, 'rb')
         summary_lex = pickle.load(f)
         f.close()
-        print('summary_lex_file loaded from pickle', summary_lex_file)
+        print('Summary_lex_file loaded from pickle', summary_lex_file)
     else:
         summary_lex = build_lexicon_for_column('Summary')
         with open(summary_lex_file,'wb') as f:
@@ -147,24 +141,34 @@ else:
         f = open(description_lex_file, 'rb')
         description_lex = pickle.load(f)
         f.close()
-        print('description_lex_file loaded from pickle', description_lex_file)
+        print('Description_lex_file loaded from pickle', description_lex_file)
     else:
         description_lex = build_lexicon_for_column('Description')
         with open(description_lex_file,'wb') as f:
             pickle.dump(description_lex, f, pickle.HIGHEST_PROTOCOL)
 
+
+    print(summary_lex.head())
+
+    print(description_lex.head())
+
     summary_columns = []
     description_columns = []
 
-    print(alm_data.shape)
-    for word in summary_lex:
-        alm_data[create_summary_column_name(word)] = np.zeros(len(alm_data.index))
-        summary_columns.append(create_summary_column_name(word))
 
-    print(alm_data.shape)
-    for word in description_lex:
-        alm_data[create_description_column_name(word)] = np.zeros(len(alm_data.index))
-        description_columns.append(create_description_column_name(word))
+    def add_columns_for_word_dictionary(df, word_dict):
+        columns = []
+        for word in word_dict:
+            df[create_description_column_name(word)] = 0
+            columns.append(create_description_column_name(word))
+        print("New shape:", alm_data.shape)
+        return df, columns
+
+
+    # Comment out in order to measure without these columns
+    _, summary_columns = add_columns_for_word_dictionary(alm_data, summary_lex)
+    _, description_columns = add_columns_for_word_dictionary(alm_data, description_lex)
+
 
     print(alm_data.shape)
 
@@ -183,24 +187,25 @@ else:
     alm_data.drop(['Summary'], 1, inplace=True)
     alm_data.drop(['Description'], 1, inplace=True)
 
-    print(alm_data.head())
-
     with open(preprocessed_file,'wb') as f:
         pickle.dump(alm_data, f, pickle.HIGHEST_PROTOCOL)
         print('alm_data stored to pickle ', preprocessed_file)
 
 from sklearn.naive_bayes import MultinomialNB
 clf = MultinomialNB()
-#
-#
-# # *********************************
-# #  Evaluate Model
-# # *********************************
-#
+
+
+# *********************************
+#  Evaluate Model
+# *********************************
+
 alm_data['Resolution_int'] = 0
 alm_data.loc[alm_data["Resolution"] == "Fixed", "Resolution_int"] = 1
 alm_data.loc[alm_data["Resolution"] == "Won\'t Fix", "Resolution_int"] = 0
 
+# writer = pd.ExcelWriter('/vagrant/examples/data/ALMsINCs-iteration1-all-features.xlsx', engine='xlsxwriter')
+# alm_data.to_excel(writer)
+# writer.save()
 
 labels = alm_data['Resolution_int']
 features = alm_data
